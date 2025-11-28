@@ -819,7 +819,6 @@ def parse_resume(cv_path):
         'certifications': 'Not found',
         'degree': 'Not found',
         'experience': 'Not found',
-        'linkedin': None  # Adding LinkedIn field
     }
 
     with pdfplumber.open(cv_path) as pdf:
@@ -896,10 +895,11 @@ def OpenFile(button):
         button.config(text=os.path.basename(resume_path))
 
 # Function to validate inputs
-def validate_and_submit(entries, gender, cv_button):
+def validate_and_submit(entries, gender, cv_button, job_role_var):
     # Get values from entries
     name = entries[0].get()
     age = entries[1].get()
+    selected_job = job_role_var.get()
     
     # Check if any fields are empty
     if not name or not age:
@@ -918,8 +918,8 @@ def validate_and_submit(entries, gender, cv_button):
         messagebox.showerror("Input Error", "Please select a resume file.")
         return
     
-    # Call job_recommendation with validated data
-    job_recommendation(None, entries[0], resume_path, (gender.get(), age))
+    # Call job_recommendation with selected job role
+    job_recommendation(None, entries[0], resume_path, (gender.get(), age), selected_job)
 
 # Calculate the job role match percentage
 def calculate_job_role_match(candidate_skills, job_role_skills):
@@ -1175,7 +1175,7 @@ def show_charts(match_data, candidate_skills, benchmark_skills, readiness_score)
         print(f"Detailed error: {e}")  # Print to console for debugging
 
 
-def job_recommendation(top, aplcnt_name, cv_path, user_info):
+def job_recommendation(top, aplcnt_name, cv_path, user_info, selected_job_role=None):
     if not cv_path:
         messagebox.showerror("File Error", "Please select a resume file.")
         return
@@ -1200,7 +1200,19 @@ def job_recommendation(top, aplcnt_name, cv_path, user_info):
         role: calculate_job_role_match(skills, required_skills)
         for role, required_skills in job_roles.items()
     }
-    sorted_job_matches = sorted(job_match_data.items(), key=lambda x: x[1], reverse=True)
+
+    # Prioritize selected job role
+    if selected_job_role and selected_job_role in job_match_data:
+        # Put selected role first, then others by match percentage
+        selected_match = (selected_job_role, job_match_data[selected_job_role])
+        other_matches = sorted(
+            [(role, pct) for role, pct in job_match_data.items() if role != selected_job_role],
+            key=lambda x: x[1], reverse=True
+        )
+        sorted_job_matches = [selected_match] + other_matches
+    else:
+        sorted_job_matches = sorted(job_match_data.items(), key=lambda x: x[1], reverse=True)
+
     top_job_matches = sorted_job_matches[:3]
 
     job_role_match_text = f"Best match: {top_job_matches[0][0]} ({top_job_matches[0][1]:.1f}%)"
@@ -1321,7 +1333,7 @@ def job_recommendation(top, aplcnt_name, cv_path, user_info):
 
     # Button Bar
     button_frame = ttk.Frame(scrollable_frame, padding=10)
-    button_frame.grid(row=5, column=0, columnspan=2, pady=20)
+    button_frame.grid(row=6, column=0, columnspan=2, pady=20)
 
     if linkedin_url:
         ttk.Button(button_frame, text="View LinkedIn", command=open_linkedin).grid(row=0, column=0, padx=10)
@@ -1415,13 +1427,32 @@ def show_job_form():
     
     Radiobutton(gender_frame, text="Male", variable=gender, value="Male", **style_rb).pack(side=LEFT, padx=(0, 20))
     Radiobutton(gender_frame, text="Female", variable=gender, value="Female", **style_rb).pack(side=LEFT)
+
+        
     
     # Resume upload button with improved styling
+    # Job Role Selection Dropdown - NEW CODE
+    Label(input_frame, text="Select Job Role", foreground='#555555', bg='white', 
+      font=("Helvetica", 12, "bold")).grid(row=5, column=0, sticky="w", pady=12)
+
+    job_role_var = StringVar()
+    job_roles_list = list(job_roles.keys())
+    job_role_var.set(job_roles_list[0])
+
+    job_dropdown_frame = Frame(input_frame, bg='white')
+    job_dropdown_frame.grid(row=5, column=1, sticky="w", pady=12)
+
+    job_dropdown = ttk.Combobox(job_dropdown_frame, textvariable=job_role_var,
+                            values=job_roles_list, font=("Helvetica", 12),
+                            width=28, state="readonly")
+    job_dropdown.pack(fill="x", ipady=4)
+
+# Resume upload button with improved styling
     Label(input_frame, text="Upload Resume", foreground='#555555', bg='white', 
-          font=("Helvetica", 12, "bold")).grid(row=5, column=0, sticky="w", pady=18)
+      font=("Helvetica", 12, "bold")).grid(row=6, column=0, sticky="w", pady=18)
     
     upload_frame = Frame(input_frame, bg='white')
-    upload_frame.grid(row=5, column=1, sticky="w", pady=18)
+    upload_frame.grid(row=6, column=1, sticky="w", pady=18)
     
     cv_button = Button(upload_frame, text="Browse Files", command=lambda: OpenFile(cv_button), 
                      font=("Helvetica", 12), bg='#E3F2FD', fg='#1976D2', relief="flat",
@@ -1435,11 +1466,11 @@ def show_job_form():
     
     # Button frame for submit and exit
     button_frame = Frame(input_frame, bg='white')
-    button_frame.grid(row=6, column=0, columnspan=2, pady=25)
+    button_frame.grid(row=7, column=0, columnspan=2, pady=25)
     
     # Submit button with improved styling
     submit_button = Button(button_frame, text="Analyze Resume", 
-                         command=lambda: validate_and_submit(entries, gender, cv_button), 
+                     command=lambda: validate_and_submit(entries, gender, cv_button, job_role_var),
                          font=("Helvetica", 14, "bold"), bg='#4CAF50', fg='black', 
                          activebackground='#2E7D32', activeforeground='white',
                          padx=20, pady=10, relief="flat", borderwidth=0)
