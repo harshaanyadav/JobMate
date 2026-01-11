@@ -15,4 +15,4 @@ macos/Flutter/ephemeral/
 .idea/
 android/.gradle/
 android/captures/
-pubspec.lock
+pubspec.lock.DS_Store
